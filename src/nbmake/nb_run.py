@@ -9,7 +9,7 @@ from nbclient.client import (
 )
 from nbformat import NotebookNode
 
-from .nb_result import NotebookError, NotebookResult
+from .nb_result import NotebookError, NotebookWarning, NotebookResult
 
 NB_VERSION = 4
 
@@ -105,6 +105,12 @@ class NotebookRun:
                 for output in cell["outputs"]
                 if output["output_type"] == "error" or "ename" in output
             ]
+            warnings = [
+                output
+                for output in cell["outputs"]
+                if "text" in  output and
+                "Warning" in output["text"]
+            ]
 
             if errors:
                 tb = "\n".join(errors[0].get("traceback", ""))
@@ -114,6 +120,17 @@ class NotebookRun:
                 trace = f"{line}\n{src}\n{tb}"
                 return NotebookError(
                     summary=last_trace, trace=trace, failing_cell_index=i
+                )
+            
+            if warnings:
+                src = "".join(cell["source"])
+                warning_text = []
+                for index, warning in enumerate(warnings):
+                    warning_text.append(f"Warning {index+1:02d}:{warning['text']}")
+                
+                warning_summary = "/n".join(warning_text)
+                return NotebookWarning(
+                    source=src, summary=warning_summary, warning_cell_index=i
                 )
 
         return None
